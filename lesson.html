@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script
+      src="https://kit.fontawesome.com/3c2e0fd26e.js"
+      crossorigin="anonymous"
+    ></script>
+    <title>희라링고 - 레슨</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="phone">
+      <div class="lesson-header">
+        <button class="close-btn" id="close-btn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="progress-bar-track">
+          <div
+            class="progress-bar-fill"
+            id="progress-fill"
+            style="width: 0%"
+          ></div>
+        </div>
+      </div>
+      <div class="lesson-topic" id="lesson-topic"></div>
+      <div class="lesson-body" id="lesson-body"></div>
+      <div class="lesson-footer" id="lesson-footer" style="display: none"></div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="common.js"></script>
+    <script>
+      const state = loadState();
+
+      const params = new URLSearchParams(location.search);
+      const lessonPos = {
+        section: params.has("s") ? Number(params.get("s")) : state.progress.section,
+        unit: params.has("u") ? Number(params.get("u")) : state.progress.unit,
+        lesson: params.has("l") ? Number(params.get("l")) : state.progress.lesson,
+      };
+      const unit = getUnit(lessonPos.section, lessonPos.unit);
+      const STEP_COUNT = 8;
+
+      document.getElementById("lesson-topic").textContent = unit.title;
+
+      // 레슨이 진행될수록 새 단어를 하나씩 풀어주고, 다 풀리면 전체를 복습.
+      // (짝맞추기 4쌍/듣기 보기 4개가 필요하므로 최소 4개는 항상 열어둠)
+      const MIN_POOL = 4;
+      const unlockedCount = Math.min(unit.words.length, MIN_POOL + lessonPos.lesson);
+      const wordPool = unit.words.slice(0, unlockedCount);
+
+      // ---- 레슨 문제 구성 (짝 맞추기 / 듣기 랜덤 혼합, 잠금 해제된 단어 풀에서 출제) ----
+      const steps = [];
+      for (let i = 0; i < STEP_COUNT; i++) {
+        if (Math.random() < 0.5) {
+          steps.push({ type: "match", words: sample(wordPool, 4) });
+        } else {
+          const words = sample(wordPool, 4);
+          steps.push({
+            type: "listen",
+            target: words[0],
+            options: sample(words, 4),
+          });
+        }
+      }
+
+      const lessonBody = document.getElementById("lesson-body");
+      const footer = document.getElementById("lesson-footer");
+      const progressFill = document.getElementById("progress-fill");
+
+      document.getElementById("close-btn").addEventListener("click", () => {
+        location.href = "index.html";
+      });
+
+      let stepIndex = 0;
+      let sinceCheer = 0;
+      let cheerThreshold = randInt(3, 4);
+
+      function updateProgress() {
+        progressFill.style.width =
+          Math.round((stepIndex / steps.length) * 100) + "%";
+      }
+
+      // word.image가 있으면 이미지를, 없으면 이모지를 보여줌
+      function cardVisual(w) {
+        return w.image
+          ? `<img class="match-card-img" src="${w.image}" alt="${w.word}">`
+          : `<span class="match-card-emoji">${w.emoji}</span>`;
+      }
+
+      // ---- 짝 맞추기 ----
+      function renderMatchStep(step, onComplete) {
+        const matched = new Set();
+        let selected = null;
+        let wrongPair = null;
+        const left = sample(step.words, step.words.length);
+        const right = sample(step.words, step.words.length);
+
+        function draw() {
+          const leftHtml = left
+            .map((w) => {
+              let cls = "match-card";
+              if (matched.has(w.word)) cls += " matched";
+              else if (
+                selected &&
+                selected.side === "left" &&
+                selected.word === w.word
+              )
+                cls += " selected";
+              else if (wrongPair && wrongPair.leftWord === w.word)
+                cls += " wrong";
+              return `<div class="${cls}" data-side="left" data-word="${w.word}">${cardVisual(w)}</div>`;
+            })
+            .join("");
+          const rightHtml = right
+            .map((w) => {
+              let cls = "match-card word";
+              if (matched.has(w.word)) cls += " matched";
+              else if (
+                selected &&
+                selected.side === "right" &&
+                selected.word === w.word
+              )
+                cls += " selected";
+              else if (wrongPair && wrongPair.rightWord === w.word)
+                cls += " wrong";
+              return `<div class="${cls}" data-side="right" data-word="${w.word}">${w.word}</div>`;
+            })
+            .join("");
+
+          lessonBody.innerHTML = `
+            <h2>그림에 맞는 단어를 연결하세요</h2>
+            <div class="match-grid">
+              <div class="match-col">${leftHtml}</div>
+              <div class="match-col">${rightHtml}</div>
+            </div>
+          `;
+
+          lessonBody.querySelectorAll(".match-card").forEach((card) => {
+            card.addEventListener("click", () =>
+              onCardClick(card.dataset.side, card.dataset.word),
+            );
+          });
+        }
+
+        function onCardClick(side, word) {
+          if (matched.has(word) || wrongPair) return;
+          if (!selected) {
+            selected = { side, word };
+            draw();
+            return;
+          }
+          if (selected.side === side) {
+            selected = { side, word };
+            draw();
+            return;
+          }
+          if (selected.word === word) {
+            matched.add(word);
+            selected = null;
+            state.quests.solvedCount++;
+            saveState(state);
+            playSfx("pair" + matched.size);
+            draw();
+            if (matched.size === step.words.length) {
+              setTimeout(onComplete, 500);
+            }
+          } else {
+            const leftWord = side === "left" ? word : selected.word;
+            const rightWord = side === "right" ? word : selected.word;
+            wrongPair = { leftWord, rightWord };
+            selected = null;
+            playSfx("pairwrong");
+            draw();
+            setTimeout(() => {
+              wrongPair = null;
+              draw();
+            }, 500);
+          }
+        }
+
+        draw();
+      }
+
+      // ---- 발음 듣고 맞추기 ----
+      function renderListenStep(step, onComplete) {
+        let selectedWord = null;
+        let confirmed = false;
+        let isCorrect = false;
+
+        function draw() {
+          const optionsHtml = step.options
+            .map((o) => {
+              let cls = "option-card";
+              if (confirmed) {
+                if (o.word === step.target.word) cls += " correct";
+                else if (o.word === selectedWord) cls += " incorrect";
+              } else if (o.word === selectedWord) {
+                cls += " selected";
+              }
+              return `<div class="${cls}" data-word="${o.word}">${o.word}</div>`;
+            })
+            .join("");
+
+          lessonBody.innerHTML = `
+            <h2>들리는 단어를 고르세요</h2>
+            <div class="listen-box">
+              <button class="speaker-btn" id="speak-btn"><i class="fa-solid fa-volume-high"></i></button>
+              <div class="listen-options">${optionsHtml}</div>
+            </div>
+          `;
+
+          document
+            .getElementById("speak-btn")
+            .addEventListener("click", () => speak(step.target.word));
+
+          if (!confirmed) {
+            lessonBody.querySelectorAll(".option-card").forEach((card) => {
+              card.addEventListener("click", () => onPick(card.dataset.word));
+            });
+          }
+
+          drawFooter();
+        }
+
+        function drawFooter() {
+          footer.style.display = "block";
+          if (!confirmed) {
+            footer.className = "lesson-footer";
+            footer.innerHTML = `<button class="btn btn-green" id="confirm-btn" ${selectedWord ? "" : "disabled"}>확인</button>`;
+            if (selectedWord) {
+              document.getElementById("confirm-btn").addEventListener("click", onConfirm);
+            }
+          } else {
+            footer.className = "lesson-footer " + (isCorrect ? "correct" : "incorrect");
+            const icon = isCorrect ? "fa-circle-check" : "fa-circle-xmark";
+            const text = isCorrect ? "정답입니다!" : `정답은 "${step.target.word}"예요`;
+            footer.innerHTML = `
+              <div class="feedback-row ${isCorrect ? "correct-text" : "incorrect-text"}">
+                <i class="fa-solid ${icon}"></i> ${text}
+              </div>
+              <button class="btn ${isCorrect ? "btn-green" : "btn-red"}" id="continue-btn">계속</button>
+            `;
+            document.getElementById("continue-btn").addEventListener("click", onComplete);
+          }
+        }
+
+        function onPick(word) {
+          if (confirmed) return;
+          selectedWord = word;
+          draw();
+        }
+
+        function onConfirm() {
+          if (!selectedWord || confirmed) return;
+          confirmed = true;
+          isCorrect = selectedWord === step.target.word;
+          state.quests.solvedCount++;
+          if (isCorrect) state.quests.listenCorrect++;
+          saveState(state);
+          playSfx(isCorrect ? "correct" : "wrong");
+          draw();
+        }
+
+        draw();
+        speak(step.target.word);
+      }
+
+      // ---- 응원 오버레이 (텍스트/영상) ----
+      function showCheer(onDone) {
+        const cheer = CHEERS[randInt(0, CHEERS.length - 1)];
+        const overlay = document.createElement("div");
+        overlay.className = "cheer-overlay";
+
+        if (cheer.type === "video") {
+          overlay.innerHTML = `<video src="${cheer.src}" autoplay playsinline></video>`;
+          document.body.appendChild(overlay);
+          const video = overlay.querySelector("video");
+          const finish = () => {
+            overlay.remove();
+            onDone();
+          };
+          video.addEventListener("ended", finish);
+          overlay.addEventListener("click", finish);
+        } else {
+          overlay.innerHTML = `<div class="cheer-emoji">${cheer.emoji || "🎉"}</div><h2>${cheer.text}</h2>`;
+          document.body.appendChild(overlay);
+          playSfx("cheering");
+          setTimeout(() => {
+            overlay.remove();
+            onDone();
+          }, 1500);
+        }
+      }
+
+      // ---- 흐름 제어 ----
+      function renderStep() {
+        footer.style.display = "none";
+        footer.className = "lesson-footer";
+        updateProgress();
+        const step = steps[stepIndex];
+        if (step.type === "match") renderMatchStep(step, onStepComplete);
+        else renderListenStep(step, onStepComplete);
+      }
+
+      function onStepComplete() {
+        stepIndex++;
+        sinceCheer++;
+        updateProgress();
+        if (stepIndex >= steps.length) {
+          renderComplete();
+          return;
+        }
+        if (sinceCheer >= cheerThreshold) {
+          sinceCheer = 0;
+          cheerThreshold = randInt(3, 4);
+          showCheer(renderStep);
+        } else {
+          renderStep();
+        }
+      }
+
+      function renderComplete() {
+        const xpEarned = steps.length * 10;
+        const gemsEarned = 20;
+        state.xp += xpEarned;
+        state.gems += gemsEarned;
+        state.quests.lessonCount++;
+        const streakGained = recordActivity(state);
+
+        // 현재 진행 위치의 레슨을 풀었을 때만 다음 레슨으로 전진 (복습은 보상만 지급)
+        if (comparePos(lessonPos, state.progress) === 0) {
+          advanceProgress(state);
+        }
+        saveState(state);
+        playSfx("lessonend");
+
+        const streakPill = streakGained
+          ? `<div class="reward-pill"><i class="fa-solid fa-fire" style="color:#ff9600"></i> ${state.streak}일 연속</div>`
+          : "";
+
+        lessonBody.innerHTML = `
+          <div class="complete-screen">
+            <div class="big-emoji">🎉</div>
+            <h1>레슨 완료!</h1>
+            <div class="reward-row">
+              <div class="reward-pill"><i class="fa-solid fa-bolt" style="color:#ffc800"></i> +${xpEarned} XP</div>
+              <div class="reward-pill"><i class="fa-solid fa-gem" style="color:#1cb0f6"></i> +${gemsEarned}</div>
+              ${streakPill}
+            </div>
+          </div>
+        `;
+        footer.style.display = "block";
+        footer.innerHTML = `<button class="btn btn-green" id="finish-btn">계속하기</button>`;
+        document.getElementById("finish-btn").addEventListener("click", () => {
+          location.href = "index.html";
+        });
+      }
+
+      function renderIntro() {
+        lessonBody.innerHTML = `
+          <div class="complete-screen">
+            <div class="big-emoji">🎯</div>
+            <h1>레슨 시작</h1>
+            <p style="color:#777">그림 짝 맞추기와 발음 듣기 문제 ${steps.length}개가 준비되어 있어요.</p>
+          </div>
+        `;
+        footer.style.display = "block";
+        footer.innerHTML = `<button class="btn btn-green" id="start-btn">시작하기</button>`;
+        document
+          .getElementById("start-btn")
+          .addEventListener("click", renderStep);
+      }
+
+      renderIntro();
+    </script>
+  </body>
+</html>

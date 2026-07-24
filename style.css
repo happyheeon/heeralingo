@@ -1,0 +1,888 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background: #f0f0f0;
+}
+
+.phone {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  height: 100vh; /* 구형 브라우저 폴백 */
+  height: 100dvh; /* 모바일 주소창 여닫힘에 맞춰 실제 보이는 높이로 */
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow: hidden;
+}
+
+/* ===== 데스크탑 3단 레이아웃 (index.html / quest.html 전용) ===== */
+/* 900px 미만에서는 .side-nav/.status-panel이 숨겨져 있고 .phone이 모바일처럼 꽉 채움 */
+.app-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.side-nav,
+.status-panel {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 480px) 280px;
+    justify-content: center;
+    column-gap: 32px;
+    align-items: start;
+  }
+
+  .app-shell .phone {
+    max-width: none;
+    height: 100vh;
+  }
+
+  .side-nav,
+  .status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: 24px 0;
+    overflow-y: auto;
+  }
+
+  /* 데스크탑에서는 사이드바가 같은 정보를 보여주므로 모바일 상/하단바는 숨김 */
+  .app-shell .top,
+  .app-shell .bottom {
+    display: none;
+  }
+}
+
+.side-nav-logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: #58cc02;
+  padding: 8px 16px 20px;
+}
+
+.side-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  color: #777;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.side-nav-item i {
+  width: 24px;
+  text-align: center;
+  font-size: 22px;
+}
+
+.side-nav-item.active {
+  color: #1cb0f6;
+  background: #ddf4ff;
+}
+
+.side-nav-item .tab-badge {
+  position: absolute;
+  top: 10px;
+  left: 34px;
+}
+
+.status-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f7f7f7;
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #999;
+  font-weight: bold;
+}
+
+.status-stat i {
+  font-size: 24px;
+}
+
+.status-stat b {
+  display: block;
+  font-size: 18px;
+  color: #3c3c3c;
+  margin-top: 2px;
+}
+
+.status-calendar {
+  background: #f7f7f7;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.status-calendar h3 {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 10px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.cal-dow {
+  font-size: 11px;
+  color: #bbb;
+  font-weight: bold;
+  padding-bottom: 4px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: white;
+  color: #999;
+  font-size: 12px;
+}
+
+.calendar-day.empty {
+  visibility: hidden;
+}
+
+.calendar-day.done {
+  background: #ff9600;
+  color: white;
+  font-weight: bold;
+}
+
+.calendar-day.today {
+  outline: 2px solid #1cb0f6;
+  outline-offset: -2px;
+}
+
+/* 상단 */
+.top {
+  height: 70px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  font-weight: bold;
+  color: #666;
+}
+
+.top span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 20px;
+}
+
+/* 초록 헤더 (상단 고정, 스크롤 위치 따라 섹션/유닛 내용이 갱신됨) */
+.unit {
+  margin: 0 18px;
+  flex-shrink: 0;
+  background: #59cc02;
+  color: white;
+  border-radius: 22px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 5px #46a302;
+}
+
+/* 섹션 구분 배너 */
+.section-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 40px 24px 8px;
+  color: var(--section-color, #58cc02);
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.section-banner::before,
+.section-banner::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+/* 유닛 구분 배너 (섹션 배너와 크기 동일, 옅게만) */
+.unit-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 24px 8px;
+  color: var(--section-color, #58cc02);
+  opacity: 0.5;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.unit-banner::before,
+.unit-banner::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.unit .left {
+  flex: 1;
+  padding: 18px;
+}
+
+.unit .left small {
+  opacity: 0.9;
+}
+
+.unit h2 {
+  font-size: 19px;
+  margin-top: 6px;
+  line-height: 1.2;
+}
+
+.unit .right {
+  width: 90px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-left: 2px solid rgba(0, 0, 0, 0.15);
+  font-size: 40px;
+}
+
+/* 길 (스크롤 영역) — 섹션/유닛 배너 + 레슨 노드가 순서대로 흐르는 레이아웃 */
+.path {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 100px;
+}
+
+.node-row {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.node {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: #58cc02;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 34px;
+  box-shadow: 0 7px #46a302;
+  border: none;
+  cursor: default;
+}
+
+.node.clickable {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.node.active {
+  outline: 8px solid #b8f57a;
+}
+
+.node.gray {
+  background: #ddd;
+  box-shadow: 0 7px #b5b5b5;
+  color: #999;
+  cursor: default;
+}
+
+.node.done {
+  background: #ffc800;
+  box-shadow: 0 7px #d4a700;
+}
+
+/* 하단 탭바 */
+.bottom {
+  flex-shrink: 0;
+  height: 80px;
+  border-top: 2px solid #eee;
+  background: white;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  font-size: 34px;
+}
+
+.bottom a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+  position: relative;
+}
+
+.bottom .tab-badge {
+  position: absolute;
+  top: 2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff4b4b;
+  border: 2px solid white;
+}
+
+.bottom div:first-child,
+.bottom a:first-child {
+  color: #4db4ff;
+}
+
+/* ===== 공용 버튼 ===== */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-green {
+  background: #58cc02;
+  box-shadow: 0 5px #46a302;
+}
+.btn-green:active {
+  box-shadow: 0 2px #46a302;
+  transform: translateY(3px);
+}
+
+.btn-blue {
+  background: #1cb0f6;
+  box-shadow: 0 5px #1899d6;
+}
+.btn-blue:active {
+  box-shadow: 0 2px #1899d6;
+  transform: translateY(3px);
+}
+
+.btn:disabled {
+  background: #e5e5e5;
+  box-shadow: 0 5px #b7b7b7;
+  color: #afafaf;
+  cursor: not-allowed;
+}
+
+.btn-red {
+  background: #ff4b4b;
+  box-shadow: 0 5px #ea2b2b;
+}
+.btn-red:active {
+  box-shadow: 0 2px #ea2b2b;
+  transform: translateY(3px);
+}
+
+/* ===== 레슨 화면 ===== */
+.lesson-header {
+  flex-shrink: 0;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+}
+
+.lesson-header .close-btn {
+  font-size: 26px;
+  color: #afafaf;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 16px;
+  background: #e5e5e5;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #58cc02;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.lesson-topic {
+  flex-shrink: 0;
+  padding: 0 20px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #afafaf;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lesson-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lesson-body h2 {
+  font-size: 20px;
+  color: #3c3c3c;
+  margin-bottom: 24px;
+}
+
+/* 짝 맞추기 */
+.match-grid {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.match-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.match-card {
+  height: 90px;
+  border: 2px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 10px;
+  text-align: center;
+  font-size: 28px;
+  cursor: pointer;
+  background: white;
+  box-shadow: 0 3px #e5e5e5;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.match-card-img {
+  width: 100%;
+  height: 56px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.match-card.word {
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.match-card.selected {
+  border-color: #1cb0f6;
+  background: #ddf4ff;
+  box-shadow: 0 3px #1cb0f6;
+}
+
+.match-card.matched {
+  border-color: #b8f57a;
+  background: #f2fce3;
+  color: #d7d7d7;
+  box-shadow: none;
+  cursor: default;
+}
+
+.match-card.matched .match-card-img,
+.match-card.matched .match-card-emoji {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.match-card.wrong {
+  animation: shake 0.4s;
+  border-color: #ff4b4b;
+  background: #ffe3e3;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* 듣기 */
+.listen-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.speaker-btn {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #1cb0f6;
+  box-shadow: 0 6px #1899d6;
+  border: none;
+  color: white;
+  font-size: 36px;
+  cursor: pointer;
+}
+.speaker-btn:active {
+  box-shadow: 0 2px #1899d6;
+  transform: translateY(4px);
+}
+
+.listen-options {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.option-card {
+  border: 2px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 17px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  background: white;
+  box-shadow: 0 3px #e5e5e5;
+}
+
+.option-card.selected {
+  border-color: #1cb0f6;
+  background: #ddf4ff;
+  box-shadow: 0 3px #1cb0f6;
+}
+
+.option-card.correct {
+  border-color: #58cc02;
+  background: #d7ffb8;
+  box-shadow: 0 3px #58cc02;
+}
+
+.option-card.incorrect {
+  border-color: #ff4b4b;
+  background: #ffe3e3;
+  box-shadow: 0 3px #ff4b4b;
+  animation: shake 0.4s;
+}
+
+.lesson-footer {
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-top: 2px solid #eee;
+  transition: background-color 0.2s ease;
+}
+
+.lesson-footer.correct {
+  background: #d7ffb8;
+  border-top-color: #d7ffb8;
+}
+
+.lesson-footer.incorrect {
+  background: #ffdfe0;
+  border-top-color: #ffdfe0;
+}
+
+.feedback-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+.feedback-row.correct-text {
+  color: #58a700;
+}
+
+.feedback-row.incorrect-text {
+  color: #ea2b2b;
+}
+
+/* ===== 응원 오버레이 ===== */
+.cheer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.97);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 50;
+  text-align: center;
+  padding: 20px;
+}
+
+.cheer-overlay .cheer-emoji {
+  font-size: 70px;
+  animation: pop 0.4s ease;
+}
+
+.cheer-overlay h2 {
+  font-size: 24px;
+  color: #58cc02;
+}
+
+.cheer-overlay video {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 16px;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===== 완료 화면 ===== */
+.complete-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  text-align: center;
+}
+
+.complete-screen .big-emoji {
+  font-size: 80px;
+}
+
+.complete-screen h1 {
+  font-size: 26px;
+  color: #3c3c3c;
+}
+
+.reward-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.reward-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f7f7f7;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.complete-footer {
+  width: 100%;
+  padding: 20px;
+}
+
+/* ===== 퀘스트 화면 ===== */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-title {
+  flex-shrink: 0;
+  padding: 20px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #3c3c3c;
+}
+
+.quest-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.quest-card {
+  border: 2px solid #e5e5e5;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.quest-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #fff3cd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.quest-info {
+  flex: 1;
+}
+
+.quest-info p {
+  font-size: 14px;
+  font-weight: bold;
+  color: #3c3c3c;
+  margin-bottom: 6px;
+}
+
+.quest-progress-track {
+  height: 12px;
+  background: #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quest-progress-fill {
+  height: 100%;
+  background: #ffc800;
+  border-radius: 8px;
+}
+
+.quest-claim-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  font-size: 13px;
+  cursor: pointer;
+  background: #58cc02;
+  color: white;
+  box-shadow: 0 3px #46a302;
+}
+
+.quest-claim-btn:disabled {
+  background: #e5e5e5;
+  box-shadow: 0 3px #b7b7b7;
+  color: #afafaf;
+  cursor: not-allowed;
+}
+
+/* ===== 상자 화면 ===== */
+.chest-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 20px;
+  text-align: center;
+}
+
+.chest-emoji {
+  font-size: 120px;
+  transition: transform 0.3s ease;
+}
+
+.chest-emoji.shake {
+  animation: shake 0.5s;
+}
+
+.chest-emoji.glow {
+  animation: pop 0.5s ease;
+}
+
+.chest-grade {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.chest-pips {
+  display: flex;
+  gap: 8px;
+}
+
+.chest-pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e5e5e5;
+}
+
+.chest-pip.used {
+  background: #ffc800;
+}
+
+.chest-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chest-msg {
+  font-size: 15px;
+  font-weight: bold;
+  min-height: 20px;
+}
+
+.chest-msg.success { color: #58cc02; }
+.chest-msg.fail { color: #ff4b4b; }
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #afafaf;
+  font-weight: bold;
+  padding: 20px;
+  text-align: center;
+}
+
+.empty-state .empty-emoji {
+  font-size: 60px;
+}

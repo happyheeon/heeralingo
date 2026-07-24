@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script
+      src="https://kit.fontawesome.com/3c2e0fd26e.js"
+      crossorigin="anonymous"
+    ></script>
+    <title>희라링고</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <nav class="side-nav" id="side-nav"></nav>
+
+      <div class="phone">
+        <div class="top"></div>
+
+        <div class="unit" id="header-unit">
+          <div class="left">
+            <small id="header-sub"></small>
+            <h2 id="header-title"></h2>
+          </div>
+          <div class="right"><i class="fa-solid fa-note-sticky"></i></div>
+        </div>
+
+        <div class="path" id="path"></div>
+
+        <div class="bottom"></div>
+      </div>
+
+      <aside class="status-panel" id="status-panel"></aside>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="common.js"></script>
+    <script>
+      const state = loadState();
+      saveState(state); // 날짜 리셋, progress 보정 등 즉시 반영
+      renderTopBar(state);
+      renderBottomNav("home");
+      renderSideNav("home");
+      renderStatusPanel(state);
+      renderChestBadge(state);
+
+      // 상단 고정 헤더 = 스크롤 위치상 현재 보고 있는 섹션/유닛으로 계속 갱신됨
+      const headerUnitEl = document.getElementById("header-unit");
+      function setHeader(si, ui) {
+        const section = SECTIONS[si];
+        const unit = getUnit(si, ui);
+        document.getElementById("header-sub").textContent = `${section.title}, 유닛 ${ui + 1}`;
+        document.getElementById("header-title").textContent = unit.title;
+        headerUnitEl.style.background = section.color;
+        headerUnitEl.style.boxShadow = `0 5px ${section.shadow}`;
+      }
+      setHeader(state.progress.section, state.progress.unit);
+
+      const ICONS = [
+        "fa-star",
+        "fa-headphones",
+        "fa-puzzle-piece",
+        "fa-book",
+        "fa-trophy",
+        "fa-graduation-cap",
+        "fa-lightbulb",
+        "fa-dumbbell",
+      ];
+      const OFFSETS = [0, -70, -110, -70, 0, 70, 110, 70];
+
+      const pathEl = document.getElementById("path");
+      let html = "";
+
+      SECTIONS.forEach((section, si) => {
+        html += `<div class="section-banner" style="--section-color:${section.color}"><span>${section.title}</span></div>`;
+
+        section.units.forEach((unit, ui) => {
+          html += `<div class="unit-banner" style="--section-color:${section.color}"><span>유닛 ${ui + 1} · ${unit.title}</span></div>`;
+
+          for (let li = 0; li < unit.lessons; li++) {
+            const pos = { section: si, unit: ui, lesson: li };
+            const cmp = comparePos(pos, state.progress);
+            let cls = "node";
+            let clickable = false;
+            if (cmp < 0) {
+              cls += " done clickable";
+              clickable = true;
+            } else if (cmp === 0) {
+              cls += " active clickable";
+              clickable = true;
+            } else {
+              cls += " gray";
+            }
+
+            const offset = OFFSETS[li % OFFSETS.length];
+            const icon = ICONS[li % ICONS.length];
+            const tag = clickable ? "a" : "div";
+            const href = clickable ? ` href="lesson.html?s=${si}&u=${ui}&l=${li}"` : "";
+            const idAttr = cmp === 0 ? ' id="active-node"' : "";
+
+            html += `
+              <div class="node-row" data-section="${si}" data-unit="${ui}">
+                <${tag} class="${cls}" style="transform:translateX(${offset}px)"${href}${idAttr}>
+                  <i class="fa-solid ${icon}" style="color:#fff"></i>
+                </${tag}>
+              </div>
+            `;
+          }
+        });
+      });
+
+      pathEl.innerHTML = html;
+
+      const activeNode = document.getElementById("active-node");
+      if (activeNode) activeNode.scrollIntoView({ block: "center" });
+
+      // 스크롤 위치에 따라 상단 고정 헤더를 현재 지나고 있는 유닛으로 갱신
+      const nodeRows = Array.from(pathEl.querySelectorAll(".node-row[data-section]"));
+      function syncHeaderToScroll() {
+        const pathTop = pathEl.getBoundingClientRect().top;
+        let current = nodeRows[0];
+        for (const row of nodeRows) {
+          if (row.getBoundingClientRect().top - pathTop <= 40) {
+            current = row;
+          } else {
+            break;
+          }
+        }
+        if (current) setHeader(Number(current.dataset.section), Number(current.dataset.unit));
+      }
+
+      let scrollTicking = false;
+      pathEl.addEventListener(
+        "scroll",
+        () => {
+          if (!scrollTicking) {
+            requestAnimationFrame(() => {
+              syncHeaderToScroll();
+              scrollTicking = false;
+            });
+            scrollTicking = true;
+          }
+        },
+        { passive: true },
+      );
+
+      syncHeaderToScroll();
+    </script>
+  </body>
+</html>
