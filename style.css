@@ -630,6 +630,51 @@ body {
   animation: shake 0.4s;
 }
 
+/* 단어 매치 (문장 순서 맞추기) */
+.order-answer-row {
+  min-height: 60px;
+  border-bottom: 2px solid #e5e5e5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 28px;
+}
+
+.order-placeholder {
+  color: #bbb;
+  font-size: 14px;
+}
+
+.order-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.order-chip {
+  padding: 12px 18px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  background: white;
+  box-shadow: 0 3px #e5e5e5;
+  user-select: none;
+}
+
+.order-chip.used {
+  visibility: hidden;
+}
+
+.order-chip.placed {
+  border-color: #1cb0f6;
+  background: #ddf4ff;
+  box-shadow: 0 3px #1cb0f6;
+}
+
 .lesson-footer {
   flex-shrink: 0;
   padding: 16px 20px;

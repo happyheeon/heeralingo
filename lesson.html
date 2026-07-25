@@ -51,17 +51,35 @@
       const unlockedCount = Math.min(unit.words.length, MIN_POOL + lessonPos.lesson);
       const wordPool = unit.words.slice(0, unlockedCount);
 
-      // ---- 레슨 문제 구성 (짝 맞추기 / 듣기 랜덤 혼합, 잠금 해제된 단어 풀에서 출제) ----
+      // 단어 매치(문장 순서 맞추기)용 고정 문장 틀. 문법적 정확함보다 반복 연습이 목적이라
+      // 단어 종류(사물/동물/추상 등)와 상관없이 항상 이 틀 중 하나를 랜덤으로 씀.
+      const SENTENCE_TEMPLATES = [
+        { particle: "를", verb: "샀어요" },
+        { particle: "를", verb: "먹었어요" },
+        { particle: "를", verb: "봤어요" },
+        { particle: "랑", verb: "놀아요" },
+        { particle: "랑", verb: "있어요" },
+      ];
+
+      // ---- 레슨 문제 구성 (짝 맞추기 / 듣기 / 단어 매치 랜덤 혼합, 잠금 해제된 단어 풀에서 출제) ----
       const steps = [];
       for (let i = 0; i < STEP_COUNT; i++) {
-        if (Math.random() < 0.5) {
+        const roll = Math.random();
+        if (roll < 1 / 3) {
           steps.push({ type: "match", words: sample(wordPool, 4) });
-        } else {
+        } else if (roll < 2 / 3) {
           const words = sample(wordPool, 4);
           steps.push({
             type: "listen",
             target: words[0],
             options: sample(words, 4),
+          });
+        } else {
+          const target = sample(wordPool, 1)[0];
+          const template = SENTENCE_TEMPLATES[randInt(0, SENTENCE_TEMPLATES.length - 1)];
+          steps.push({
+            type: "order",
+            pieces: ["저는", `${target.word}${template.particle}`, template.verb],
           });
         }
       }
@@ -147,6 +165,7 @@
 
         function onCardClick(side, word) {
           if (matched.has(word) || wrongPair) return;
+          if (side === "right") speak(word);
           if (!selected) {
             selected = { side, word };
             draw();
@@ -179,6 +198,87 @@
               draw();
             }, 500);
           }
+        }
+
+        draw();
+      }
+
+      // ---- 단어 매치 (문장 순서 맞추기) ----
+      function renderOrderStep(step, onComplete) {
+        const shuffled = sample(step.pieces, step.pieces.length);
+        let answer = []; // shuffled 배열의 index를 클릭한 순서대로 저장
+        let confirmed = false;
+        let isCorrect = false;
+
+        function draw() {
+          const answerHtml =
+            answer.map((i) => `<div class="order-chip placed" data-idx="${i}">${shuffled[i]}</div>`).join("") ||
+            '<span class="order-placeholder">아래 카드를 순서대로 눌러보세요</span>';
+          const bankHtml = shuffled
+            .map((piece, i) => `<div class="order-chip ${answer.includes(i) ? "used" : ""}" data-idx="${i}">${piece}</div>`)
+            .join("");
+
+          lessonBody.innerHTML = `
+            <h2>순서에 맞게 문장을 완성하세요</h2>
+            <div class="order-answer-row">${answerHtml}</div>
+            <div class="order-bank">${bankHtml}</div>
+          `;
+
+          lessonBody.querySelectorAll(".order-answer-row .order-chip").forEach((el) => {
+            el.addEventListener("click", () => onAnswerTap(Number(el.dataset.idx)));
+          });
+          lessonBody.querySelectorAll(".order-bank .order-chip").forEach((el) => {
+            el.addEventListener("click", () => onBankTap(Number(el.dataset.idx)));
+          });
+
+          drawFooter();
+        }
+
+        function onBankTap(i) {
+          if (confirmed || answer.includes(i)) return;
+          speak(shuffled[i]);
+          answer.push(i);
+          draw();
+        }
+
+        function onAnswerTap(i) {
+          if (confirmed) return;
+          speak(shuffled[i]);
+          answer = answer.filter((x) => x !== i);
+          draw();
+        }
+
+        function drawFooter() {
+          footer.style.display = "block";
+          if (!confirmed) {
+            const ready = answer.length === step.pieces.length;
+            footer.className = "lesson-footer";
+            footer.innerHTML = `<button class="btn btn-green" id="confirm-btn" ${ready ? "" : "disabled"}>확인</button>`;
+            if (ready) {
+              document.getElementById("confirm-btn").addEventListener("click", onConfirm);
+            }
+          } else {
+            footer.className = "lesson-footer " + (isCorrect ? "correct" : "incorrect");
+            const icon = isCorrect ? "fa-circle-check" : "fa-circle-xmark";
+            const text = isCorrect ? "정답입니다!" : `정답은 "${step.pieces.join(" ")}"예요`;
+            footer.innerHTML = `
+              <div class="feedback-row ${isCorrect ? "correct-text" : "incorrect-text"}">
+                <i class="fa-solid ${icon}"></i> ${text}
+              </div>
+              <button class="btn ${isCorrect ? "btn-green" : "btn-red"}" id="continue-btn">계속</button>
+            `;
+            document.getElementById("continue-btn").addEventListener("click", onComplete);
+          }
+        }
+
+        function onConfirm() {
+          if (confirmed || answer.length !== step.pieces.length) return;
+          confirmed = true;
+          isCorrect = answer.map((i) => shuffled[i]).join(" ") === step.pieces.join(" ");
+          state.quests.solvedCount++;
+          saveState(state);
+          playSfx(isCorrect ? "correct" : "wrong");
+          draw();
         }
 
         draw();
@@ -302,7 +402,8 @@
         updateProgress();
         const step = steps[stepIndex];
         if (step.type === "match") renderMatchStep(step, onStepComplete);
-        else renderListenStep(step, onStepComplete);
+        else if (step.type === "listen") renderListenStep(step, onStepComplete);
+        else renderOrderStep(step, onStepComplete);
       }
 
       function onStepComplete() {
@@ -466,7 +567,7 @@
           <div class="complete-screen">
             <div class="big-emoji">🎯</div>
             <h1>레슨 시작</h1>
-            <p style="color:#777">그림 짝 맞추기와 발음 듣기 문제 ${steps.length}개가 준비되어 있어요.</p>
+            <p style="color:#777">그림 짝 맞추기, 발음 듣기, 단어 매치 문제 ${steps.length}개가 준비되어 있어요.</p>
           </div>
         `;
         footer.style.display = "block";
