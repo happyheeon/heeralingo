@@ -9,6 +9,24 @@ body {
   background: #f0f0f0;
 }
 
+/* 스크롤은 되지만 스크롤바는 안 보이게 */
+.path,
+.lesson-body,
+.quest-list,
+.side-nav,
+.status-panel {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* 구형 Edge/IE */
+}
+
+.path::-webkit-scrollbar,
+.lesson-body::-webkit-scrollbar,
+.quest-list::-webkit-scrollbar,
+.side-nav::-webkit-scrollbar,
+.status-panel::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
 .phone {
   width: 100%;
   max-width: 480px;
