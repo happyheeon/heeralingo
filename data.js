@@ -7,12 +7,12 @@
 // 영상:   { type: "video", src: "cheers/파일명.mp4" }
 //          → cheers 폴더에 mp4 파일을 넣고 파일명만 적으면 됩니다.
 const CHEERS = [
-  { type: "text", text: "잘하고 있어요!", emoji: "🎉" },
-  { type: "text", text: "대단해요, 계속 가요!", emoji: "🔥" },
-  { type: "text", text: "완벽해요!", emoji: "⭐" },
-  { type: "text", text: "실력이 늘고 있어요!", emoji: "💪" },
-  { type: "text", text: "역시 최고!", emoji: "🏆" },
-  // { type: "video", src: "cheers/myvideo.mp4" },
+  // { type: "text", text: "잘하고 있어요!", emoji: "🎉" },
+  // { type: "text", text: "대단해요, 계속 가요!", emoji: "🔥" },
+  // { type: "text", text: "완벽해요!", emoji: "⭐" },
+  // { type: "text", text: "실력이 늘고 있어요!", emoji: "💪" },
+  // { type: "text", text: "역시 최고!", emoji: "🏆" },
+  { type: "video", src: "cheers/cheering.mp4" },
 ];
 
 // ---- 학습 구조: 섹션(난이도) → 유닛(주제) → 레슨 ----
