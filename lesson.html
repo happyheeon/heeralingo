@@ -322,6 +322,10 @@
         }
       }
 
+      function goToIndex() {
+        location.href = "index.html";
+      }
+
       function renderComplete() {
         const xpEarned = steps.length * 10;
         const gemsEarned = 20;
@@ -334,7 +338,12 @@
         if (comparePos(lessonPos, state.progress) === 0) {
           advanceProgress(state);
         }
+
+        // 방금 레슨으로 달성한 퀘스트가 있으면 자동으로 상자 지급 (기존에 못 연 상자가 있어도 여기서 같이 처리)
+        claimCompletedQuests(state);
+
         saveState(state);
+        renderChestBadge(state);
         playSfx("lessonend");
 
         const streakPill = streakGained
@@ -352,11 +361,104 @@
             </div>
           </div>
         `;
-        footer.style.display = "block";
-        footer.innerHTML = `<button class="btn btn-green" id="finish-btn">계속하기</button>`;
-        document.getElementById("finish-btn").addEventListener("click", () => {
-          location.href = "index.html";
-        });
+
+        if (state.chests > 0) {
+          // 열 수 있는 상자가 있으면 버튼 없이 잠깐 뒤 자동으로 상자 화면으로 넘어감
+          footer.style.display = "none";
+          setTimeout(renderChestFlow, 1200);
+        } else {
+          footer.style.display = "block";
+          footer.innerHTML = `<button class="btn btn-green" id="finish-btn">계속하기</button>`;
+          document.getElementById("finish-btn").addEventListener("click", goToIndex);
+        }
+      }
+
+      // ---- 상자 강화/열기: 화면 아무데나 누르면 강화, 3번 다 쓰면 다음 클릭에 자동으로 열림 ----
+      function renderChestFlow() {
+        let gradeIndex = 0;
+        let attemptsUsed = 0;
+        let msg = "상자를 눌러서 강화하세요";
+        let msgType = "";
+        let effectClass = "";
+
+        function canUpgrade() {
+          return gradeIndex < CHEST.grades.length - 1 && attemptsUsed < 3;
+        }
+
+        function draw() {
+          const grade = CHEST.grades[gradeIndex];
+          const emoji = CHEST.gradeEmoji[gradeIndex];
+          const color = CHEST.gradeColor[gradeIndex];
+          const pipsHtml = Array.from({ length: 3 })
+            .map((_, i) => `<div class="chest-pip ${i < attemptsUsed ? "used" : ""}"></div>`)
+            .join("");
+
+          lessonBody.innerHTML = `
+            <div class="chest-screen tappable" id="chest-tap-area">
+              <div class="chest-emoji ${effectClass}" style="color:${color}">${emoji}</div>
+              <div class="chest-grade" style="color:${color}">${grade} 상자</div>
+              <div class="chest-pips">${pipsHtml}</div>
+              <div class="chest-msg ${msgType}">${msg}</div>
+            </div>
+          `;
+          document.getElementById("chest-tap-area").addEventListener("click", onTap, { once: true });
+        }
+
+        function onTap() {
+          if (canUpgrade()) {
+            doUpgrade();
+          } else {
+            doOpen();
+          }
+        }
+
+        function doUpgrade() {
+          attemptsUsed++;
+          playSfx("cheststrengthen");
+          const chance = CHEST.upgradeChance[gradeIndex];
+          if (Math.random() < chance) {
+            gradeIndex++;
+            msg = "강화 성공! ✨";
+            msgType = "success";
+            effectClass = "glow";
+          } else {
+            msg = "강화 실패...";
+            msgType = "fail";
+            effectClass = "shake";
+          }
+          draw();
+          setTimeout(() => {
+            effectClass = "";
+            msg = canUpgrade() ? "상자를 눌러서 강화하세요" : "눌러서 상자를 열어요!";
+            msgType = "";
+            draw();
+          }, 700);
+        }
+
+        function doOpen() {
+          const reward = CHEST.rewards[gradeIndex];
+          const grade = CHEST.grades[gradeIndex];
+          state.gems += reward;
+          state.chests = Math.max(0, state.chests - 1);
+          saveState(state);
+          renderChestBadge(state);
+          playSfx("chestopen");
+
+          lessonBody.innerHTML = `
+            <div class="chest-screen">
+              <div class="chest-emoji glow">💎</div>
+              <h1 style="font-size:22px;">${grade} 상자 획득!</h1>
+              <div class="reward-pill"><i class="fa-solid fa-gem" style="color:#1cb0f6"></i> +${reward}</div>
+            </div>
+          `;
+
+          setTimeout(() => {
+            if (state.chests > 0) renderChestFlow();
+            else goToIndex();
+          }, 1200);
+        }
+
+        draw();
       }
 
       function renderIntro() {

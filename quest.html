@@ -36,152 +36,30 @@
 
       const main = document.getElementById("main");
 
-      const QUEST_DEFS = [
-        { key: "solve", icon: "🧩", label: "문제 15개 풀기", goal: 15, getValue: (s) => s.quests.solvedCount },
-        { key: "lesson", icon: "📘", label: "레슨 2개 완료하기", goal: 2, getValue: (s) => s.quests.lessonCount },
-        { key: "listen", icon: "🎧", label: "듣기 문제 8개 정답 맞히기", goal: 8, getValue: (s) => s.quests.listenCorrect },
-      ];
-
-      function renderQuestList() {
-        const cardsHtml = QUEST_DEFS.map((q) => {
-          const value = Math.min(q.getValue(state), q.goal);
-          const pct = Math.round((value / q.goal) * 100);
-          const claimed = state.quests.claimed[q.key];
-          const achieved = value >= q.goal;
-          const btnLabel = claimed ? "완료" : achieved ? "받기" : `${value}/${q.goal}`;
-          const disabled = claimed || !achieved;
-          return `
-            <div class="quest-card">
-              <div class="quest-icon">${q.icon}</div>
-              <div class="quest-info">
-                <p>${q.label}</p>
-                <div class="quest-progress-track"><div class="quest-progress-fill" style="width:${pct}%"></div></div>
-              </div>
-              <button class="quest-claim-btn" data-key="${q.key}" ${disabled ? "disabled" : ""}>${btnLabel}</button>
+      // 퀘스트 완료 여부만 보여주는 읽기 전용 화면. 상자는 레슨을 마칠 때 자동으로 지급되고
+      // 그 자리에서 바로 열게 되므로, 여기서는 따로 받기/열기 버튼이 없음.
+      const cardsHtml = QUEST_DEFS.map((q) => {
+        const value = Math.min(q.getValue(state), q.goal);
+        const pct = Math.round((value / q.goal) * 100);
+        const done = value >= q.goal;
+        return `
+          <div class="quest-card">
+            <div class="quest-icon">${q.icon}</div>
+            <div class="quest-info">
+              <p>${q.label}</p>
+              <div class="quest-progress-track"><div class="quest-progress-fill" style="width:${pct}%"></div></div>
             </div>
-          `;
-        }).join("");
-
-        const chestBannerHtml =
-          state.chests > 0
-            ? `<div class="quest-card" style="justify-content:center;">
-                 <button class="btn btn-green" id="open-chest-btn" style="width:auto; padding:10px 24px;">📦 상자 열기 (${state.chests}개)</button>
-               </div>`
-            : "";
-
-        main.innerHTML = `
-          <div class="page-title">일일 퀘스트</div>
-          <div class="quest-list">
-            ${cardsHtml}
-            ${chestBannerHtml}
+            <div class="quest-status ${done ? "done" : ""}">
+              ${done ? '<i class="fa-solid fa-circle-check"></i>' : `${value}/${q.goal}`}
+            </div>
           </div>
         `;
+      }).join("");
 
-        main.querySelectorAll(".quest-claim-btn").forEach((btn) => {
-          if (btn.disabled) return;
-          btn.addEventListener("click", () => {
-            const key = btn.dataset.key;
-            if (state.quests.claimed[key]) return;
-            state.quests.claimed[key] = true;
-            state.chests++;
-            saveState(state);
-            renderChestBadge(state);
-            renderQuestList();
-          });
-        });
-
-        const openBtn = document.getElementById("open-chest-btn");
-        if (openBtn) openBtn.addEventListener("click", renderChestScreen);
-      }
-
-      function renderChestScreen() {
-        let gradeIndex = 0;
-        let attemptsUsed = 0;
-        let msg = "상자를 강화하거나 바로 열어보세요.";
-        let msgType = "";
-        let effectClass = "";
-
-        function draw() {
-          const grade = CHEST.grades[gradeIndex];
-          const emoji = CHEST.gradeEmoji[gradeIndex];
-          const color = CHEST.gradeColor[gradeIndex];
-          const maxGrade = gradeIndex === CHEST.grades.length - 1;
-          const attemptsLeft = 3 - attemptsUsed;
-          const canUpgrade = !maxGrade && attemptsUsed < 3;
-          const pipsHtml = Array.from({ length: 3 })
-            .map((_, i) => `<div class="chest-pip ${i < attemptsUsed ? "used" : ""}"></div>`)
-            .join("");
-
-          main.innerHTML = `
-            <div class="chest-screen">
-              <div class="chest-emoji ${effectClass}" style="color:${color}">${emoji}</div>
-              <div class="chest-grade" style="color:${color}">${grade} 상자</div>
-              <div class="chest-pips">${pipsHtml}</div>
-              <div class="chest-msg ${msgType}">${msg}</div>
-              <div class="chest-actions">
-                <button class="btn btn-blue" id="upgrade-btn" ${canUpgrade ? "" : "disabled"}>강화하기 (남은 ${attemptsLeft}/3)</button>
-                <button class="btn btn-green" id="open-btn">상자 열기 (💎 ${CHEST.rewards[gradeIndex]})</button>
-              </div>
-            </div>
-          `;
-
-          const upgradeBtn = document.getElementById("upgrade-btn");
-          if (canUpgrade) upgradeBtn.addEventListener("click", onUpgrade);
-          document.getElementById("open-btn").addEventListener("click", onOpen);
-        }
-
-        function onUpgrade() {
-          attemptsUsed++;
-          playSfx("cheststrengthen");
-          const chance = CHEST.upgradeChance[gradeIndex];
-          const success = Math.random() < chance;
-          if (success) {
-            gradeIndex++;
-            msg = "강화 성공! ✨";
-            msgType = "success";
-            effectClass = "glow";
-          } else {
-            msg = "강화 실패...";
-            msgType = "fail";
-            effectClass = "shake";
-          }
-          draw();
-          setTimeout(() => {
-            effectClass = "";
-          }, 500);
-        }
-
-        function onOpen() {
-          const reward = CHEST.rewards[gradeIndex];
-          const grade = CHEST.grades[gradeIndex];
-          state.gems += reward;
-          state.chests = Math.max(0, state.chests - 1);
-          saveState(state);
-          renderTopBar(state);
-          renderStatusPanel(state);
-          renderChestBadge(state);
-          playSfx("chestopen");
-
-          main.innerHTML = `
-            <div class="chest-screen">
-              <div class="chest-emoji glow">💎</div>
-              <h1 style="font-size:22px;">${grade} 상자 획득!</h1>
-              <div class="reward-pill"><i class="fa-solid fa-gem" style="color:#1cb0f6"></i> +${reward}</div>
-              <div class="chest-actions">
-                <button class="btn btn-green" id="back-btn">${state.chests > 0 ? "다음 상자 열기" : "퀘스트로 돌아가기"}</button>
-              </div>
-            </div>
-          `;
-          document.getElementById("back-btn").addEventListener("click", () => {
-            if (state.chests > 0) renderChestScreen();
-            else renderQuestList();
-          });
-        }
-
-        draw();
-      }
-
-      renderQuestList();
+      main.innerHTML = `
+        <div class="page-title">일일 퀘스트</div>
+        <div class="quest-list">${cardsHtml}</div>
+      `;
     </script>
   </body>
 </html>

@@ -814,27 +814,21 @@ body {
   border-radius: 8px;
 }
 
-.quest-claim-btn {
+.quest-status {
   flex-shrink: 0;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
+  min-width: 44px;
+  text-align: center;
   font-weight: bold;
   font-size: 13px;
-  cursor: pointer;
-  background: #58cc02;
-  color: white;
-  box-shadow: 0 3px #46a302;
-}
-
-.quest-claim-btn:disabled {
-  background: #e5e5e5;
-  box-shadow: 0 3px #b7b7b7;
   color: #afafaf;
-  cursor: not-allowed;
 }
 
-/* ===== 상자 화면 ===== */
+.quest-status.done {
+  color: #58cc02;
+  font-size: 22px;
+}
+
+/* ===== 상자 화면 (아무데나 눌러서 강화/열기) ===== */
 .chest-screen {
   flex: 1;
   display: flex;
@@ -844,6 +838,11 @@ body {
   gap: 24px;
   padding: 20px;
   text-align: center;
+}
+
+.chest-screen.tappable {
+  cursor: pointer;
+  user-select: none;
 }
 
 .chest-emoji {
@@ -878,13 +877,6 @@ body {
 
 .chest-pip.used {
   background: #ffc800;
-}
-
-.chest-actions {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .chest-msg {

@@ -86,6 +86,27 @@ function recordActivity(state) {
   return true;
 }
 
+// ---- 일일 퀘스트 ----
+const QUEST_DEFS = [
+  { key: "solve", icon: "🧩", label: "문제 15개 풀기", goal: 15, getValue: (s) => s.quests.solvedCount },
+  { key: "lesson", icon: "📘", label: "레슨 2개 완료하기", goal: 2, getValue: (s) => s.quests.lessonCount },
+  { key: "listen", icon: "🎧", label: "듣기 문제 8개 정답 맞히기", goal: 8, getValue: (s) => s.quests.listenCorrect },
+];
+
+// 달성했지만 아직 상자를 못 받은 퀘스트를 자동으로 지급. 새로 지급된 상자 개수를 반환.
+function claimCompletedQuests(state) {
+  let claimed = 0;
+  QUEST_DEFS.forEach((q) => {
+    if (state.quests.claimed[q.key]) return;
+    if (q.getValue(state) >= q.goal) {
+      state.quests.claimed[q.key] = true;
+      state.chests++;
+      claimed++;
+    }
+  });
+  return claimed;
+}
+
 // ---- 섹션/유닛/레슨 진행 헬퍼 ----
 function getUnit(s, u) {
   const section = SECTIONS[s];
