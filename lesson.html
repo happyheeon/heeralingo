@@ -51,14 +51,20 @@
       const unlockedCount = Math.min(unit.words.length, MIN_POOL + lessonPos.lesson);
       const wordPool = unit.words.slice(0, unlockedCount);
 
-      // 단어 매치(문장 순서 맞추기)용 고정 문장 틀. 문법적 정확함보다 반복 연습이 목적이라
-      // 단어 종류(사물/동물/추상 등)와 상관없이 항상 이 틀 중 하나를 랜덤으로 씀.
+      // 단어 마지막 글자에 받침이 있는지 확인 (을/를, 이랑/랑 선택용)
+      function hasBatchim(word) {
+        const code = word.charCodeAt(word.length - 1) - 0xac00;
+        if (code < 0 || code > 11171) return false; // 한글 완성형 음절이 아니면 받침 없다고 취급
+        return code % 28 !== 0;
+      }
+
+      // 단어 매치(문장 순서 맞추기)용 고정 문장 틀. 받침 유무에 따라 을/를, 이랑/랑을 골라 붙임.
       const SENTENCE_TEMPLATES = [
-        { particle: "를", verb: "샀어요" },
-        { particle: "를", verb: "먹었어요" },
-        { particle: "를", verb: "봤어요" },
-        { particle: "랑", verb: "놀아요" },
-        { particle: "랑", verb: "있어요" },
+        { withBatchim: "을", noBatchim: "를", verb: "샀어요" },
+        { withBatchim: "을", noBatchim: "를", verb: "먹었어요" },
+        { withBatchim: "을", noBatchim: "를", verb: "봤어요" },
+        { withBatchim: "이랑", noBatchim: "랑", verb: "놀아요" },
+        { withBatchim: "이랑", noBatchim: "랑", verb: "있어요" },
       ];
 
       // ---- 레슨 문제 구성 (짝 맞추기 / 듣기 / 단어 매치 랜덤 혼합, 잠금 해제된 단어 풀에서 출제) ----
@@ -77,9 +83,10 @@
         } else {
           const target = sample(wordPool, 1)[0];
           const template = SENTENCE_TEMPLATES[randInt(0, SENTENCE_TEMPLATES.length - 1)];
+          const particle = hasBatchim(target.word) ? template.withBatchim : template.noBatchim;
           steps.push({
             type: "order",
-            pieces: ["저는", `${target.word}${template.particle}`, template.verb],
+            pieces: ["저는", `${target.word}${particle}`, template.verb],
           });
         }
       }
