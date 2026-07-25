@@ -64,6 +64,14 @@ body {
   .app-shell .bottom {
     display: none;
   }
+
+  body {
+    background: white;
+  }
+
+  #header-unit {
+    margin-top: 20px;
+  }
 }
 
 .side-nav-logo {
