@@ -72,6 +72,15 @@ function loadState() {
 
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  syncAndroidWidget(state);
+}
+
+// 안드로이드 앱(WebView) 안에서 열렸을 때만 존재하는 다리.
+// 일반 브라우저/GitHub Pages에서는 window.AndroidWidget이 없으니 그냥 아무 일도 안 함.
+function syncAndroidWidget(state) {
+  if (window.AndroidWidget && typeof window.AndroidWidget.updateStreak === "function") {
+    window.AndroidWidget.updateStreak(state.streak, state.gems);
+  }
 }
 
 // 레슨 완료 시 호출. 오늘 처음 학습한 것이면 스트릭을 갱신하고 true를 반환.
