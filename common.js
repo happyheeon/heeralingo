@@ -158,6 +158,11 @@ function advanceProgress(state) {
 
 // ---- TTS ----
 function speak(text) {
+  // 안드로이드 앱(WebView) 안에서는 speechSynthesis가 아예 없어서 네이티브 TTS 다리로 대신 말함
+  if (window.AndroidTts && typeof window.AndroidTts.speak === "function") {
+    window.AndroidTts.speak(text);
+    return;
+  }
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
