@@ -592,6 +592,69 @@ body {
   transform: translateY(4px);
 }
 
+/* 발음 연습 (마이크로 음성 인식) */
+.pronounce-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.pronounce-target {
+  font-size: 96px;
+  font-weight: bold;
+  color: #3c3c3c;
+}
+
+.mic-btn {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #ff4b4b;
+  box-shadow: 0 6px #ea2b2b;
+  border: none;
+  color: white;
+  font-size: 40px;
+  cursor: pointer;
+}
+
+.mic-btn:active {
+  box-shadow: 0 2px #ea2b2b;
+  transform: translateY(4px);
+}
+
+.mic-btn.listening {
+  cursor: default;
+  animation: mic-pulse 1s infinite;
+}
+
+.mic-btn:disabled {
+  cursor: default;
+}
+
+@keyframes mic-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 6px #ea2b2b,
+      0 0 0 0 rgba(255, 75, 75, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 6px #ea2b2b,
+      0 0 0 16px rgba(255, 75, 75, 0);
+  }
+}
+
+.pronounce-hint {
+  color: #999;
+  font-size: 15px;
+  font-weight: bold;
+  min-height: 20px;
+}
+
 .listen-options {
   width: 100%;
   display: flex;

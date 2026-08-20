@@ -210,24 +210,25 @@ function renderChestBadge(state) {
   });
 }
 
-// active: "home" | "quest" — 현재 페이지에 해당하는 탭을 강조 표시
+// active: "home" | "quest" | "pronounce" — 현재 페이지에 해당하는 탭을 강조 표시
 function renderBottomNav(active) {
   const el = document.querySelector(".bottom");
   if (!el) return;
   const homeColor = active === "home" ? "#4db4ff" : "#727272";
   const questColor = active === "quest" ? "#4db4ff" : "#727272";
+  const pronounceColor = active === "pronounce" ? "#4db4ff" : "#727272";
   el.innerHTML = `
     <a href="index.html"><i class="fa-solid fa-house" style="color:${homeColor}"></i></a>
     <a href="quest.html" style="position:relative;">
       <i class="fa-solid fa-box" style="color:${questColor}"></i>
       <span class="tab-badge" style="display:none;"></span>
     </a>
-    <a href="#"><i class="fa-solid fa-trophy" style="color:#727272"></i></a>
+    <a href="pronounce.html"><i class="fa-regular fa-circle" style="color:${pronounceColor}"></i></a>
     <a href="#"><i class="fa-solid fa-user" style="color:#727272"></i></a>
   `;
 }
 
-// active: "home" | "quest" — 데스크탑(≥900px)에서 보이는 왼쪽 세로 메뉴, 라벨 포함
+// active: "home" | "quest" | "pronounce" — 데스크탑(≥900px)에서 보이는 왼쪽 세로 메뉴, 라벨 포함
 function renderSideNav(active) {
   const el = document.querySelector("#side-nav");
   if (!el) return;
@@ -240,7 +241,9 @@ function renderSideNav(active) {
       <i class="fa-solid fa-box"></i><span>퀘스트</span>
       <span class="tab-badge" style="display:none;"></span>
     </a>
-    <a href="#" class="side-nav-item"><i class="fa-solid fa-trophy"></i><span>랭킹</span></a>
+    <a href="pronounce.html" class="side-nav-item ${active === "pronounce" ? "active" : ""}">
+      <i class="fa-regular fa-circle"></i><span>발음</span>
+    </a>
     <a href="#" class="side-nav-item"><i class="fa-solid fa-user"></i><span>프로필</span></a>
   `;
 }
@@ -305,4 +308,52 @@ function sample(arr, n) {
 
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ---- 발음 인식 싱크로율 계산 (초성을 제일 중요하게 보는 가중치 비교) ----
+// 목적이 자음(초성) 발음 연습이라, 모음만 같고 자음이 다르면 낮은 점수가 나와야 함.
+// 그래서 단순 편집거리 대신 초성 0.7 / 중성 0.2 / 종성 0.1 가중치로 계산.
+const HANGUL_CHO = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+const HANGUL_JUNG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
+const HANGUL_JONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+
+// 한글 음절 한 글자를 초성/중성/종성으로 분해. 완성형 한글이 아니면 null.
+function decomposeSyllable(ch) {
+  const code = ch.codePointAt(0) - 0xac00;
+  if (code < 0 || code > 11171) return null;
+  return {
+    cho: HANGUL_CHO[Math.floor(code / (21 * 28))],
+    jung: HANGUL_JUNG[Math.floor((code % (21 * 28)) / 28)],
+    jong: HANGUL_JONG[code % 28],
+  };
+}
+
+function charSimilarity(a, b) {
+  if (a === b) return 1;
+  const da = decomposeSyllable(a);
+  const db = decomposeSyllable(b);
+  if (!da || !db) return 0;
+  let score = 0;
+  if (da.cho === db.cho) score += 0.7;
+  if (da.jung === db.jung) score += 0.2;
+  if (da.jong === db.jong) score += 0.1;
+  return score;
+}
+
+// target(목표 음절)과 recognized(인식된 문장) 사이 싱크로율을 0~1로 반환.
+// target의 글자마다 recognized 안에서 제일 비슷한 글자를 찾아 평균낸다.
+function syllableSimilarity(target, recognized) {
+  const clean = (recognized || "").replace(/\s+/g, "");
+  if (!clean) return 0;
+  if (clean.includes(target)) return 1;
+
+  let total = 0;
+  for (const t of target) {
+    let best = 0;
+    for (const c of clean) {
+      best = Math.max(best, charSimilarity(t, c));
+    }
+    total += best;
+  }
+  return target.length ? total / target.length : 0;
 }

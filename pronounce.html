@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="자음별로 음성 인식을 이용해 발음을 연습하는 희라링고 발음 연습 화면."
+    />
+    <meta property="og:title" content="희라링고 - 발음 연습" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ko_KR" />
+    <script
+      src="https://kit.fontawesome.com/3c2e0fd26e.js"
+      crossorigin="anonymous"
+    ></script>
+    <title>희라링고 - 발음 연습</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="phone">
+      <div class="lesson-header">
+        <button class="close-btn" id="close-btn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="lesson-topic" id="lesson-topic"></div>
+      <div class="lesson-body" id="lesson-body"></div>
+      <div class="lesson-footer" id="lesson-footer" style="display: none"></div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="common.js"></script>
+    <script>
+      // 지금은 세트가 ㄹ 하나뿐이라 바로 씀. 나중에 세트가 늘어나면 고르는 화면을 앞에 끼우면 됨.
+      const set = PRONUNCIATION_SETS[0];
+
+      const lessonBody = document.getElementById("lesson-body");
+      const footer = document.getElementById("lesson-footer");
+      const progressFill = document.getElementById("progress-fill");
+
+      document.getElementById("lesson-topic").textContent = set.title;
+      document.getElementById("close-btn").addEventListener("click", () => {
+        location.href = "index.html";
+      });
+
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      let stepIndex = 0;
+
+      function updateProgress() {
+        progressFill.style.width = Math.round((stepIndex / set.syllables.length) * 100) + "%";
+      }
+
+      function renderStep() {
+        footer.style.display = "none";
+        footer.className = "lesson-footer";
+        updateProgress();
+        renderPronounceStep(set.syllables[stepIndex], onStepComplete);
+      }
+
+      function onStepComplete() {
+        stepIndex++;
+        updateProgress();
+        if (stepIndex >= set.syllables.length) {
+          renderComplete();
+        } else {
+          renderStep();
+        }
+      }
+
+      // ---- 음절 하나 발음 연습 (마이크 → 음성 인식 → 싱크로율 40% 이상이면 통과) ----
+      function renderPronounceStep(target, onComplete) {
+        let recState = "idle"; // idle | listening | result
+        let heardText = "";
+        let similarity = 0;
+        let success = false;
+        let errorMsg = "";
+
+        function draw() {
+          const hint =
+            recState === "listening"
+              ? "듣고 있어요..."
+              : recState === "idle"
+                ? "마이크를 눌러서 말해보세요"
+                : "";
+
+          lessonBody.innerHTML = `
+            <h2>큰 소리로 말해보세요</h2>
+            <div class="pronounce-box">
+              <div class="pronounce-target">${target}</div>
+              <button class="mic-btn ${recState === "listening" ? "listening" : ""}" id="mic-btn" ${recState === "listening" ? "disabled" : ""}>
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+              <div class="pronounce-hint">${hint}</div>
+            </div>
+          `;
+
+          if (recState !== "listening") {
+            document.getElementById("mic-btn").addEventListener("click", startListening);
+          }
+
+          drawFooter();
+        }
+
+        function drawFooter() {
+          if (recState !== "result") {
+            footer.style.display = "none";
+            return;
+          }
+          footer.style.display = "block";
+          footer.className = "lesson-footer " + (success ? "correct" : "incorrect");
+          const icon = success ? "fa-circle-check" : "fa-circle-xmark";
+          const pct = Math.round(similarity * 100);
+          const text = errorMsg
+            ? errorMsg
+            : success
+              ? `정답이에요! (일치율 ${pct}%)`
+              : `다시 말해보세요 (일치율 ${pct}%, 인식: "${heardText || "..."}")`;
+
+          footer.innerHTML = `
+            <div class="feedback-row ${success ? "correct-text" : "incorrect-text"}">
+              <i class="fa-solid ${icon}"></i> ${text}
+            </div>
+            <button class="btn ${success ? "btn-green" : "btn-red"}" id="pronounce-next-btn">${success ? "계속" : "다시 시도"}</button>
+          `;
+          document.getElementById("pronounce-next-btn").addEventListener("click", () => {
+            if (success) {
+              onComplete();
+            } else {
+              recState = "idle";
+              errorMsg = "";
+              draw();
+            }
+          });
+        }
+
+        function startListening() {
+          if (!SpeechRec) {
+            recState = "result";
+            success = false;
+            similarity = 0;
+            heardText = "";
+            errorMsg = "이 브라우저는 음성 인식을 지원하지 않아요.";
+            draw();
+            return;
+          }
+
+          recState = "listening";
+          errorMsg = "";
+          draw();
+
+          const recognition = new SpeechRec();
+          recognition.lang = "ko-KR";
+          recognition.maxAlternatives = 5;
+          recognition.interimResults = false;
+
+          recognition.onresult = (e) => {
+            const alts = Array.from(e.results[0]).map((r) => r.transcript);
+            let best = 0;
+            let bestText = alts[0] || "";
+            alts.forEach((t) => {
+              const s = syllableSimilarity(target, t);
+              if (s > best) {
+                best = s;
+                bestText = t;
+              }
+            });
+            heardText = bestText;
+            similarity = best;
+            success = best >= 0.4;
+            recState = "result";
+            playSfx(success ? "correct" : "wrong");
+            draw();
+          };
+
+          recognition.onerror = (e) => {
+            recState = "result";
+            success = false;
+            similarity = 0;
+            heardText = "";
+            errorMsg = e.error === "not-allowed" ? "마이크 권한이 필요해요." : "다시 시도해주세요.";
+            draw();
+          };
+
+          recognition.onend = () => {
+            if (recState === "listening") {
+              recState = "idle";
+              draw();
+            }
+          };
+
+          recognition.start();
+        }
+
+        draw();
+      }
+
+      function renderComplete() {
+        lessonBody.innerHTML = `
+          <div class="complete-screen">
+            <div class="big-emoji">🎉</div>
+            <h1>발음 연습 완료!</h1>
+            <p style="color:#777">${set.title}을(를) 다 연습했어요.</p>
+          </div>
+        `;
+        footer.style.display = "block";
+        footer.className = "lesson-footer";
+        footer.innerHTML = `<button class="btn btn-green" id="finish-btn">홈으로</button>`;
+        document.getElementById("finish-btn").addEventListener("click", () => {
+          location.href = "index.html";
+        });
+      }
+
+      function renderIntro() {
+        lessonBody.innerHTML = `
+          <div class="complete-screen">
+            <div class="big-emoji">🎤</div>
+            <h1>${set.title}</h1>
+            <p style="color:#777">${set.syllables.join(", ")}를 소리내어 말해보세요.</p>
+          </div>
+        `;
+        footer.style.display = "block";
+        footer.className = "lesson-footer";
+        footer.innerHTML = `<button class="btn btn-green" id="start-btn">시작하기</button>`;
+        document.getElementById("start-btn").addEventListener("click", renderStep);
+      }
+
+      renderIntro();
+    </script>
+  </body>
+</html>
