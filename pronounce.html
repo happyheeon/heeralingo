@@ -92,12 +92,16 @@
             <h2>큰 소리로 말해보세요</h2>
             <div class="pronounce-box">
               <div class="pronounce-target">${target}</div>
+              <button class="speaker-btn" id="pronounce-speak-btn"><i class="fa-solid fa-volume-high"></i></button>
               <button class="mic-btn ${recState === "listening" ? "listening" : ""}" id="mic-btn" ${recState === "listening" ? "disabled" : ""}>
                 <i class="fa-solid fa-microphone"></i>
               </button>
               <div class="pronounce-hint">${hint}</div>
             </div>
           `;
+
+          // 말하기 전에 원래 발음을 들어볼 수 있게. 자동재생은 안 하고 누를 때만 재생.
+          document.getElementById("pronounce-speak-btn").addEventListener("click", () => speak(target));
 
           if (recState !== "listening") {
             document.getElementById("mic-btn").addEventListener("click", startListening);
